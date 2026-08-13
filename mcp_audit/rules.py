@@ -8,7 +8,10 @@ This makes it trivial to add new rules or let contributors add their
 own without touching the scanner.
 """
 
+import re
 from dataclasses import dataclass
+
+from mcp_audit.known_servers import KNOWN_MCP_PACKAGES
 
 SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2, "info": 3}
 
@@ -147,6 +150,105 @@ def rule_shell_metacharacters(server: str, config: dict) -> list[Finding]:
     return findings
 
 
+def _levenshtein(a: str, b: str) -> int:
+    """
+    Standard edit-distance calculation, implemented directly so this
+    project has zero extra dependencies beyond rich.
+    """
+    if a == b:
+        return 0
+    if len(a) == 0:
+        return len(b)
+    if len(b) == 0:
+        return len(a)
+
+    previous_row = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, start=1):
+        current_row = [i]
+        for j, char_b in enumerate(b, start=1):
+            insertions = previous_row[j] + 1
+            deletions = current_row[j - 1] + 1
+            substitutions = previous_row[j - 1] + (char_a != char_b)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    return previous_row[-1]
+
+
+_PACKAGE_NAME_PATTERN = re.compile(r"^(@[\w.-]+/[\w.-]+|[\w.-]+)(@[\w.\-]+)?$")
+
+
+def _extract_package_names(args: list) -> list[str]:
+    """
+    Pulls out anything in `args` that looks like an npm/pypi-style
+    package identifier, stripping any @version suffix (including
+    @latest). Skips flags (start with "-"), file paths (contain "/"
+    without a leading "@" scope, or start with "." or a drive letter),
+    and anything too short to be meaningful.
+    """
+    names = []
+    for arg in args:
+        if not isinstance(arg, str):
+            continue
+        if arg.startswith("-"):
+            continue
+        if arg in ("-y", "npx", "uvx", "node", "python", "python3"):
+            continue
+        # Looks like a filesystem path, not a package name --- skip.
+        if arg.startswith((".", "/", "~")) or re.match(r"^[A-Za-z]:\\\\", arg):
+            continue
+
+        match = _PACKAGE_NAME_PATTERN.match(arg)
+        if not match:
+            continue
+        base_name = match.group(1)
+        if len(base_name) < 4:
+            continue
+        names.append(base_name)
+    return names
+
+
+def rule_unverified_or_typosquat_package(server: str, config: dict) -> list[Finding]:
+    """
+    For each package-looking argument:
+    - exact match against KNOWN_MCP_PACKAGES -> no finding, it's known-good
+    - very close (edit distance 1-2) to a known package but NOT exact ->
+      high severity, likely typosquat
+    - otherwise, if it looks like a real package identifier but isn't
+      in our list at all -> info severity, "unverified, review manually"
+    """
+    args = config.get("args", []) or []
+    findings = []
+
+    for name in _extract_package_names(args):
+        if name in KNOWN_MCP_PACKAGES:
+            continue
+
+        closest, closest_distance = None, None
+        for known in KNOWN_MCP_PACKAGES:
+            distance = _levenshtein(name, known)
+            if closest_distance is None or distance < closest_distance:
+                closest, closest_distance = known, distance
+
+        if closest is not None and 0 < closest_distance <= 2:
+            findings.append(Finding(
+                server=server,
+                severity="high",
+                rule="possible_typosquat",
+                message=f"package '{name}' is very close to the known official package '{closest}' "
+                        f"(edit distance {closest_distance}) --- double-check this isn't a typosquat.",
+            ))
+        else:
+            findings.append(Finding(
+                server=server,
+                severity="info",
+                rule="unverified_package",
+                message=f"package '{name}' is not in our known-server list. This doesn't mean it's "
+                        f"unsafe, just that it hasn't been verified against a known-good registry --- worth a manual look.",
+            ))
+
+    return findings
+
+
 ALL_RULES = [
     rule_hardcoded_secrets,
     rule_insecure_transport,
@@ -154,6 +256,7 @@ ALL_RULES = [
     rule_dangerous_flags,
     rule_unpinned_version,
     rule_shell_metacharacters,
+    rule_unverified_or_typosquat_package,
 ]
 
 
