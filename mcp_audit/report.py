@@ -80,3 +80,34 @@ def print_report(results: list[ScanResult], console: Console | None = None):
                        f"human look, it does not make a final verdict.")
     else:
         console.print("[bold green]No risky patterns found in any scanned config.[/]")
+
+
+def results_to_dict(results: list[ScanResult]) -> dict:
+    """
+    Converts scan results into a plain JSON-serializable dict, for use
+    in CI pipelines, pre-commit hooks, or any other script that wants
+    structured output instead of the human-readable report.
+    """
+    return {
+        "files_scanned": len(results),
+        "servers_scanned": sum(r.server_count for r in results),
+        "total_findings": sum(len(r.findings) for r in results),
+        "results": [
+            {
+                "client": r.client,
+                "config_path": str(r.config_path),
+                "server_count": r.server_count,
+                "error": r.error,
+                "findings": [
+                    {
+                        "server": f.server,
+                        "severity": f.severity,
+                        "rule": f.rule,
+                        "message": f.message,
+                    }
+                    for f in r.findings
+                ],
+            }
+            for r in results
+        ],
+    }
