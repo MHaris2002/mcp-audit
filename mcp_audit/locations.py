@@ -78,6 +78,23 @@ def known_global_locations() -> list[ConfigLocation]:
         scope="global",
     ))
 
+    # --- Claude Code (global/user scope) ---
+    # Sources disagree slightly on the exact canonical file, and the
+    # nesting structure can vary (sometimes servers are nested under
+    # a "projects" key rather than flat) --- scanner.py handles that
+    # by searching recursively, so we just need to check both known
+    # candidate files here.
+    locations.append(ConfigLocation(
+        client="Claude Code",
+        path=home / ".claude.json",
+        scope="global",
+    ))
+    locations.append(ConfigLocation(
+        client="Claude Code",
+        path=home / ".claude" / "settings.json",
+        scope="global",
+    ))
+
     return locations
 
 
@@ -90,6 +107,11 @@ def project_locations(project_dir: Path) -> list[ConfigLocation]:
         ConfigLocation(
             client="Cursor (project)",
             path=project_dir / ".cursor" / "mcp.json",
+            scope="project",
+        ),
+        ConfigLocation(
+            client="Claude Code (project)",
+            path=project_dir / ".claude" / "settings.json",
             scope="project",
         ),
         ConfigLocation(

@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "/home/user/my-app": {
+      "allowedTools": ["Read", "Bash"],
+      "mcpServers": {
+        "nested-risky": {
+          "command": "npx",
+          "args": ["-y", "totally-unverified-thing@latest", "/"],
+          "env": {
+            "SECRET_TOKEN": "hardcoded-literal-value-123456"
+          }
+        }
+      }
+    }
+  }
+}
