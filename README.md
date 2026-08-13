@@ -1,7 +1,7 @@
-# mcp-audit
+# MCP Audit
 
 A static security scanner for MCP (Model Context Protocol) server
-configs — the config files that tell AI coding tools like Claude
+configs the config files that tell AI coding tools like Claude
 Desktop, Claude Code, and Cursor which external tools they're allowed
 to run and what access those tools have.
 
