@@ -39,9 +39,11 @@ This isn't hypothetical. In January 2026, critical vulnerabilities were discover
 | `hardcoded_secret` | 🔴 High | API keys, tokens, or passwords written as literal values instead of `${ENV_VAR}` references |
 | `insecure_transport` | 🔴 High | Remote server URLs using unencrypted `http://` instead of `https://` |
 | `dangerous_flag` | 🔴 High | Flags like `--dangerously-skip-permissions` that disable normal safety prompts |
+| `possible_typosquat` | 🔴 High | A package name suspiciously close (edit distance ≤ 2) to a known official one — e.g. `server-filesytem` vs `server-filesystem` |
 | `broad_filesystem_access` | 🟠 Medium | Servers granted access to broad roots (`/`, `~`, `/home`) instead of a specific project folder |
 | `shell_metacharacters` | 🟠 Medium | Arguments containing `;`, `&&`, `` ` ``, or `$(...)` — worth a manual check for command injection |
 | `unpinned_version` | 🔵 Low | Packages installed with `@latest` instead of a pinned version, which can change behavior without warning |
+| `unverified_package` | ⚪ Info | A package not in our known-server list — not necessarily unsafe, just unverified |
 
 Every finding includes a plain-English explanation. The tool **never makes a final verdict** — it surfaces patterns for a human to review.
 
@@ -50,18 +52,19 @@ Every finding includes a plain-English explanation. The tool **never makes a fin
 | Client | Global config | Project config |
 |---|---|---|
 | Claude Desktop | ✅ Standard install + Microsoft Store install | — |
+| Claude Code | ✅ `~/.claude.json`, `~/.claude/settings.json` | ✅ `.claude/settings.json` |
 | Cursor | ✅ `~/.cursor/mcp.json` | ✅ `.cursor/mcp.json` |
 | Generic / custom | — | ✅ `.mcp.json` |
 
-> Claude Code support is in progress — see [Roadmap](#roadmap).
+The scanner searches recursively for `mcpServers` blocks at any depth in a file, so it correctly finds servers even when a client (like Claude Code) nests them under a per-project structure rather than at the top level.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    A["Config files\n(Claude Desktop, Cursor)"] --> B["locations.py\nfinds files per OS"]
-    B --> C["scanner.py\nloads and parses JSON"]
-    C --> D["rules.py\nstatic rule engine"]
+    A["Config files\n(Claude Desktop, Claude Code, Cursor)"] --> B["locations.py\nfinds files per OS"]
+    B --> C["scanner.py\nrecursive JSON search"]
+    C --> D["rules.py\n8 static rules incl.\ntyposquat detection"]
     D --> E{Findings?}
     E -->|Yes| F["report.py\ncolored terminal report"]
     E -->|No| G["Clean"]
@@ -161,14 +164,18 @@ Add the function to `ALL_RULES` at the bottom of the file and it's automatically
 
 ## Roadmap
 
-- [x] Static rule engine with 6 rules
+**Backend — complete:**
+- [x] Static rule engine with 8 rules
 - [x] Claude Desktop (incl. Microsoft Store install) + Cursor config discovery
+- [x] Claude Code config support, including nested project structures
+- [x] Known-server allowlist + typosquat detection (edit-distance based)
 - [x] JSON output mode for CI pipelines
 - [x] Configurable exit codes via `--fail-on`
-- [ ] Claude Code config support (`~/.claude.json`, nested project configs)
-- [ ] Known-server allowlist + typosquat detection
-- [ ] Community-maintained list of known-risky/known-good MCP servers
+
+**Next up:**
+- [ ] Community-maintained, larger list of known-risky/known-good MCP servers
 - [ ] `--fix` mode for safe, mechanical fixes (e.g. pinning versions)
+- [ ] A simple, non-technical UI (desktop or web) so people who aren't comfortable with a terminal can run a scan and understand the results
 
 ## Contributing
 
