@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![No AI required](https://img.shields.io/badge/AI%20calls-none-brightgreen)](#why-this-exists)
+[![SARIF](https://img.shields.io/badge/output-SARIF%202.1.0-blueviolet)](#cicd-integration)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](#contributing)
 
 ---
@@ -25,6 +26,7 @@ This isn't hypothetical. In January 2026, critical vulnerabilities were discover
 - [Installation](#installation)
 - [Usage](#usage)
 - [CI / pre-commit usage](#ci--pre-commit-usage)
+- [CI/CD integration (SARIF + GitHub Code Scanning)](#cicd-integration)
 - [Example output](#example-output)
 - [Project layout](#project-layout)
 - [Adding a new rule](#adding-a-new-rule)
@@ -69,8 +71,10 @@ flowchart LR
     E -->|Yes| F["report.py\ncolored terminal report"]
     E -->|No| G["Clean"]
     D --> H["--json flag\nmachine-readable output"]
+    D --> J["--sarif flag\nGitHub Code Scanning"]
     F --> I["--fail-on flag\nexit code for CI"]
     H --> I
+    J --> K["GitHub Actions\nuploads to Security tab"]
 ```
 
 Everything runs locally, synchronously, with no network calls — the entire scan of a typical config completes in well under a second.
@@ -93,6 +97,8 @@ pip install -r requirements.txt
 | `python -m mcp_audit.cli --project .` | Also scans project-scoped configs in the given directory |
 | `python -m mcp_audit.cli --file path.json` | Scans one specific file directly |
 | `python -m mcp_audit.cli --json` | Outputs machine-readable JSON instead of the colored report |
+| `python -m mcp_audit.cli --sarif` | Outputs SARIF 2.1.0, for GitHub Code Scanning and similar tools |
+| `python -m mcp_audit.cli --sarif --output results.sarif` | Writes SARIF output to a file instead of stdout |
 | `python -m mcp_audit.cli --fail-on <level>` | Sets the minimum severity that triggers a non-zero exit code |
 
 ### Try it on the included examples first
@@ -118,6 +124,36 @@ Combine with `--json` to pipe structured results into another tool:
 ```bash
 python3 -m mcp_audit.cli --json > scan-results.json
 ```
+
+## CI/CD integration
+
+`mcp-audit` speaks [SARIF 2.1.0](https://sarifweb.azurewebsites.net/), the standard format GitHub's own Code Scanning uses — the same pipeline as CodeQL and Dependabot. A ready-to-use workflow is included at [`.github/workflows/mcp-audit.yml`](.github/workflows/mcp-audit.yml):
+
+```yaml
+- name: Run mcp-audit
+  run: |
+    python -m mcp_audit.cli \
+      --file tests/fixtures/risky_config.json \
+      --sarif \
+      --output results.sarif \
+      --fail-on none
+
+- name: Upload SARIF to GitHub Code Scanning
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif
+```
+
+Once this runs, every finding shows up as a native alert under your repo's **Security → Code scanning** tab — correct severity badge, exact file, exact line number, no custom dashboard needed:
+
+| Rule | Severity | Location |
+|---|---|---|
+| A flag disables a normal safety or permission prompt. | 🔴 Error | `tests/fixtures/risky_config.json:16` |
+| A credential is written as a literal value instead of an environment variable reference. | 🔴 Error | `tests/fixtures/risky_config.json:9` |
+| A server URL uses unencrypted http:// instead of https://. | 🔴 Error | `tests/fixtures/risky_config.json:3` |
+| An argument contains shell metacharacters that may indicate command injection. | 🟠 Warning | `tests/fixtures/risky_config.json:21` |
+| A server is granted access to a broad filesystem root instead of a specific folder. | 🟠 Warning | `tests/fixtures/risky_config.json:9` |
+| A package is not present in the known-server registry. | ⚪ Note | `tests/fixtures/risky_config.json:16` |
 
 ## Example output
 
@@ -146,9 +182,10 @@ mcp_audit/
   locations.py   — knows where each client stores its config file, per OS
   rules.py       — the static rule engine (add new rules here)
   scanner.py     — loads config files and runs rules against them
-  report.py      — renders findings as a readable terminal report, or JSON
+  report.py      — renders findings as terminal report, JSON, or SARIF
   cli.py         — the command-line entrypoint
 tests/fixtures/  — example clean and risky configs used to verify the tool works
+.github/workflows/mcp-audit.yml — CI workflow: scans + uploads SARIF to Code Scanning
 ```
 
 ## Adding a new rule
@@ -171,8 +208,11 @@ Add the function to `ALL_RULES` at the bottom of the file and it's automatically
 - [x] Known-server allowlist + typosquat detection (edit-distance based)
 - [x] JSON output mode for CI pipelines
 - [x] Configurable exit codes via `--fail-on`
+- [x] SARIF output + GitHub Actions workflow for native Code Scanning integration
 
 **Next up:**
+- [ ] Finding suppression / baseline file (`.mcpauditignore`)
+- [ ] Scan history + drift detection between runs
 - [ ] Community-maintained, larger list of known-risky/known-good MCP servers
 - [ ] `--fix` mode for safe, mechanical fixes (e.g. pinning versions)
 - [ ] A simple, non-technical UI (desktop or web) so people who aren't comfortable with a terminal can run a scan and understand the results
