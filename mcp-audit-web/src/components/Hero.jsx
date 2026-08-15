@@ -1,5 +1,6 @@
 import { useState } from "react";
 import UploadCard from "./UploadCard";
+import HelpPaths from "./HelpPaths";
 import ResultsPanel from "./ResultsPanel";
 import { scanConfig } from "../lib/ruleEngine";
 
@@ -22,6 +23,7 @@ export default function Hero() {
         </p>
 
         <UploadCard onInspect={handleInspect} />
+        <HelpPaths />
 
         {result && <ResultsPanel findings={result.findings} serverCount={result.serverCount} />}
       </div>
