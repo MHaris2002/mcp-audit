@@ -1,0 +1,47 @@
+name: Deploy web UI to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mcp-audit-web/**"
+  workflow_dispatch:   # allows manually triggering a deploy from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: mcp-audit-web
+        run: npm install
+
+      - name: Build
+        working-directory: mcp-audit-web
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload build output
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: mcp-audit-web/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

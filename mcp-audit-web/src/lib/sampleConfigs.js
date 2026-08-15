@@ -1,0 +1,37 @@
+export const SAMPLE_CLEAN = {
+  mcpServers: {
+    filesystem: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "./project-data"],
+      env: {},
+    },
+    github: {
+      url: "https://api.githubcopilot.com/mcp/",
+      headers: { Authorization: "Bearer ${GITHUB_TOKEN}" },
+    },
+  },
+};
+
+export const SAMPLE_RISKY = {
+  mcpServers: {
+    "sketchy-remote": {
+      url: "http://internal-tool.example.com/mcp",
+      headers: { Authorization: "Bearer sk-live-a1b2c3d4e5f6g7h8i9j0" },
+    },
+    "over-privileged-fs": {
+      command: "npx",
+      args: ["-y", "some-fs-server@latest", "/"],
+      env: { API_KEY: "sk-prod-hardcoded-1234567890" },
+    },
+    "yolo-runner": {
+      command: "uvx",
+      args: ["risky-agent-server", "--dangerously-skip-permissions"],
+      env: {},
+    },
+    "shell-injection-looking": {
+      command: "bash",
+      args: ["-c", "start.sh; rm -rf /tmp/cache"],
+      env: {},
+    },
+  },
+};
