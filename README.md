@@ -6,7 +6,10 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![No AI required](https://img.shields.io/badge/AI%20calls-none-brightgreen)](#why-this-exists)
 [![SARIF](https://img.shields.io/badge/output-SARIF%202.1.0-blueviolet)](#cicd-integration)
+[![Live demo](https://img.shields.io/badge/demo-live-2E9E86)](https://MHaris2002.github.io/mcp-audit/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](#contributing)
+
+**[Try the live web demo →](https://MHaris2002.github.io/mcp-audit/)** — no install, works on desktop or mobile, nothing you paste ever leaves your browser.
 
 ---
 
@@ -18,8 +21,11 @@ This isn't hypothetical. In January 2026, critical vulnerabilities were discover
 
 `mcp-audit` scans the config files that control these permissions and flags patterns worth a human look — the same way a linter flags code smells rather than proving a bug exists.
 
+Two ways to use it: the **[web app](https://MHaris2002.github.io/mcp-audit/)** for a quick, visual, no-install check anyone can run — or the **CLI** below for real machine auto-discovery, CI integration, and SARIF output.
+
 ## Table of contents
 
+- [Live web demo](#try-the-live-web-demo)
 - [What it catches](#what-it-catches)
 - [Supported clients](#supported-clients)
 - [How it works](#how-it-works)
@@ -215,7 +221,11 @@ Add the function to `ALL_RULES` at the bottom of the file and it's automatically
 - [ ] Scan history + drift detection between runs
 - [ ] Community-maintained, larger list of known-risky/known-good MCP servers
 - [ ] `--fix` mode for safe, mechanical fixes (e.g. pinning versions)
-- [ ] A simple, non-technical UI (desktop or web) so people who aren't comfortable with a terminal can run a scan and understand the results
+
+**Web UI — complete:**
+- [x] Static, client-side React web app (`mcp-audit-web/`) — same 8 rules as the CLI, verified against the same test fixtures
+- [x] Deployed to GitHub Pages via Actions, auto-redeploys on changes to `mcp-audit-web/`
+- [ ] Keep the JS rule engine manually in sync as Python rules evolve (see `mcp-audit-web/README.md`)
 
 ## Contributing
 
